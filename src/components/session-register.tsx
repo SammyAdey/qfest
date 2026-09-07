@@ -111,12 +111,12 @@ export function SessionRegister() {
       className="mx-auto max-w-[100rem] px-5 pb-16 pt-10 md:px-8 md:pt-14"
     >
       <p className="max-w-2xl text-mute">
-        QFest is free. Fill in your details, choose one session or as many as
-        you like, then submit your registration.
+        QFest is free. Choose your sessions, fill in your details, then submit
+        your registration.
       </p>
 
       <div className="mt-12 grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-16">
-        <div className="order-2 min-w-0 space-y-14 lg:order-1">
+        <div className="min-w-0 space-y-14">
           <div className="border-b border-ink/15 pb-4">
             <h2 className="font-display text-3xl text-ink">Your sessions</h2>
             <p className="mt-2 text-sm text-mute">
@@ -226,7 +226,7 @@ export function SessionRegister() {
           })}
         </div>
 
-        <aside className="order-1 lg:sticky lg:top-[calc(var(--site-header-h,7.5rem)+1.25rem)] lg:order-2">
+        <aside className="lg:sticky lg:top-[calc(var(--site-header-h,7.5rem)+1.25rem)]">
           <div className="border border-ink/10 bg-white p-6 md:p-7">
             <h2 className="font-display text-3xl text-ink">Your details</h2>
             <p className="mt-2 text-sm text-mute">

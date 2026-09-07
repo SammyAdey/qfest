@@ -52,7 +52,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${archivo.variable} ${voyage.variable} h-full antialiased`}
+      className={`${archivo.variable} ${voyage.variable} intro-lock h-full antialiased`}
     >
       <body className="flex min-h-full min-w-0 flex-col overflow-x-clip bg-paper font-sans text-ink">
         <SmoothScroll />

@@ -3,9 +3,34 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
-const DURATION_MS = 3200;
-const INTRO_VIDEO = "/about/about-landing.mp4";
-const INTRO_POSTER = "/brand/QFest-key-visual.png";
+const COVER_VIDEO = "/about/about-landing.mp4";
+const COVER_POSTER = "/brand/QFest-key-visual.png";
+/** Swap this ID for the real QFest intro when ready (Big Buck Bunny placeholder) */
+const YOUTUBE_PLACEHOLDER_ID = "aqz-KE-bpKQ";
+
+/** Homepage + intro assets that should be ready before Enter site */
+const CRITICAL_IMAGES = [
+  "/brand/poster.png",
+  COVER_POSTER,
+  "/brand/Qfest-logo.png",
+  "/Quramo.PNG",
+  "/paper_scroll/top-scroll.png",
+  "/paper_scroll/bottom-scroll.png",
+  "/paper_scroll/poster-textured-v2.png",
+  "/gallery/gallery-01-crowd.png",
+  "/gallery/gallery-02-stage.png",
+  "/gallery/gallery-03-panel.png",
+  "/gallery/gallery-04-books.png",
+  "/gallery/gallery-05-networking.png",
+] as const;
+
+const CRITICAL_VIDEOS = [
+  COVER_VIDEO,
+  "/brand/QFest-key-visual-v2.mp4",
+] as const;
+
+const ASSET_TIMEOUT_MS = 45_000;
+const MIN_LOADER_MS = 600;
 
 type Phase = "loading" | "gate" | "done";
 
@@ -33,52 +58,102 @@ function blobPath(cx: number, cy: number, radius: number, t: number) {
   return d;
 }
 
+function withTimeout(promise: Promise<void>, ms: number) {
+  return Promise.race([
+    promise,
+    new Promise<void>((resolve) => {
+      window.setTimeout(resolve, ms);
+    }),
+  ]);
+}
+
+function loadImage(src: string) {
+  return new Promise<void>((resolve) => {
+    const img = new window.Image();
+    img.decoding = "async";
+    img.onload = () => resolve();
+    img.onerror = () => resolve();
+    img.src = src;
+    if (img.complete) resolve();
+  });
+}
+
+function loadVideo(src: string) {
+  return new Promise<void>((resolve) => {
+    const video = document.createElement("video");
+    video.preload = "auto";
+    video.muted = true;
+    video.playsInline = true;
+
+    const done = () => {
+      video.removeEventListener("canplaythrough", done);
+      video.removeEventListener("loadeddata", done);
+      video.removeEventListener("error", done);
+      video.removeAttribute("src");
+      video.load();
+      resolve();
+    };
+
+    video.addEventListener("canplaythrough", done, { once: true });
+    video.addEventListener("error", done, { once: true });
+    // Fallback if canplaythrough never fires on some browsers
+    video.addEventListener("loadeddata", done, { once: true });
+    video.src = src;
+    video.load();
+  });
+}
+
+function waitForFonts() {
+  if (!document.fonts?.ready) return Promise.resolve();
+  return document.fonts.ready.then(
+    () => undefined,
+    () => undefined,
+  );
+}
+
+function waitForWindowLoad() {
+  if (document.readyState === "complete") return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    window.addEventListener("load", () => resolve(), { once: true });
+  });
+}
+
 export function SiteLoader() {
-  const [phase, setPhase] = useState<Phase | null>(null);
+  const [phase, setPhase] = useState<Phase>("loading");
   const [progress, setProgress] = useState(0);
   const [playing, setPlaying] = useState(false);
   const pathRef = useRef<SVGPathElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const coverVideoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef(0);
   const mouse = useRef({ x: 0, y: 0 });
   const cursor = useRef({ x: 0, y: 0 });
-  const startRef = useRef(0);
 
   useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     document.documentElement.classList.add("intro-lock");
 
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) {
-      const id = window.requestAnimationFrame(() => setPhase("gate"));
+      setPhase("gate");
       return () => {
-        window.cancelAnimationFrame(id);
         document.documentElement.classList.remove("intro-lock");
       };
     }
 
-    const boot = window.requestAnimationFrame(() => setPhase("loading"));
+    let cancelled = false;
+    let frame = 0;
+
     mouse.current = {
       x: window.innerWidth * 0.28,
       y: window.innerHeight * 0.32,
     };
     cursor.current = { ...mouse.current };
-    startRef.current = performance.now();
 
     const onMove = (event: PointerEvent) => {
       mouse.current = { x: event.clientX, y: event.clientY };
     };
-
     window.addEventListener("pointermove", onMove, { passive: true });
 
-    let frame = 0;
-    const tick = (now: number) => {
-      const elapsed = now - startRef.current;
-      const nextProgress = Math.min(100, Math.round((elapsed / DURATION_MS) * 100));
-      if (nextProgress !== progressRef.current) {
-        progressRef.current = nextProgress;
-        setProgress(nextProgress);
-      }
-
+    const tickBlob = (now: number) => {
       const ease = 0.12;
       cursor.current.x += (mouse.current.x - cursor.current.x) * ease;
       cursor.current.y += (mouse.current.y - cursor.current.y) * ease;
@@ -89,19 +164,58 @@ export function SiteLoader() {
         blobPath(cursor.current.x, cursor.current.y, radius, now / 1000),
       );
 
-      if (elapsed < DURATION_MS) {
-        frame = requestAnimationFrame(tick);
-        return;
-      }
+      frame = requestAnimationFrame(tickBlob);
+    };
+    frame = requestAnimationFrame(tickBlob);
 
-      setProgress(100);
-      setPhase("gate");
+    const totalUnits =
+      CRITICAL_IMAGES.length + CRITICAL_VIDEOS.length + 2; // fonts + window load
+    let completed = 0;
+
+    const markDone = () => {
+      if (cancelled) return;
+      completed += 1;
+      const next = Math.min(99, Math.round((completed / totalUnits) * 100));
+      if (next !== progressRef.current) {
+        progressRef.current = next;
+        setProgress(next);
+      }
     };
 
-    frame = requestAnimationFrame(tick);
+    const startedAt = performance.now();
+
+    void (async () => {
+      const tasks: Promise<void>[] = [
+        ...CRITICAL_IMAGES.map((src) =>
+          withTimeout(loadImage(src), ASSET_TIMEOUT_MS).then(markDone),
+        ),
+        ...CRITICAL_VIDEOS.map((src) =>
+          withTimeout(loadVideo(src), ASSET_TIMEOUT_MS).then(markDone),
+        ),
+        withTimeout(waitForFonts(), ASSET_TIMEOUT_MS).then(markDone),
+        withTimeout(waitForWindowLoad(), ASSET_TIMEOUT_MS).then(markDone),
+      ];
+
+      await Promise.all(tasks);
+      if (cancelled) return;
+
+      const elapsed = performance.now() - startedAt;
+      const waitMore = Math.max(0, MIN_LOADER_MS - elapsed);
+      if (waitMore > 0) {
+        await new Promise<void>((resolve) => {
+          window.setTimeout(resolve, waitMore);
+        });
+      }
+      if (cancelled) return;
+
+      progressRef.current = 100;
+      setProgress(100);
+      cancelAnimationFrame(frame);
+      setPhase("gate");
+    })();
 
     return () => {
-      window.cancelAnimationFrame(boot);
+      cancelled = true;
       cancelAnimationFrame(frame);
       window.removeEventListener("pointermove", onMove);
       document.documentElement.classList.remove("intro-lock");
@@ -109,65 +223,40 @@ export function SiteLoader() {
   }, []);
 
   useEffect(() => {
-    const video = videoRef.current;
+    const video = coverVideoRef.current;
     if (!video || phase !== "gate") return;
 
-    const onEnded = () => {
-      setPlaying(false);
-      video.muted = true;
-      video.loop = true;
-      void video.play().catch(() => {});
-    };
+    if (playing) {
+      video.pause();
+      return;
+    }
 
-    const onError = () => {
-      setPlaying(false);
-    };
-
-    // Cover is the about-landing video — muted loop until Play
     video.muted = true;
     video.loop = true;
     void video.play().catch(() => {});
+  }, [phase, playing]);
 
-    video.addEventListener("ended", onEnded);
-    video.addEventListener("error", onError);
-    return () => {
-      video.removeEventListener("ended", onEnded);
-      video.removeEventListener("error", onError);
-    };
-  }, [phase]);
-
-  async function playVideo() {
-    const video = videoRef.current;
-    if (!video) return;
-
+  function playVideo() {
+    coverVideoRef.current?.pause();
     setPlaying(true);
-    try {
-      video.muted = false;
-      video.loop = false;
-      video.currentTime = 0;
-      await video.play();
-    } catch {
-      setPlaying(false);
-      video.muted = true;
-      video.loop = true;
-      void video.play().catch(() => {});
-    }
   }
 
   function enterSite() {
-    videoRef.current?.pause();
+    coverVideoRef.current?.pause();
     setPlaying(false);
     document.documentElement.classList.remove("intro-lock");
     setPhase("done");
   }
 
-  if (!phase || phase === "done") return null;
+  if (phase === "done") return null;
 
   return (
     <div className="site-loader" aria-hidden={phase === "loading"}>
+      {/* Always paint paper so loading → gate never reveals the page underneath */}
+      <div className="site-loader__paper" />
+
       {phase === "loading" ? (
         <>
-          <div className="site-loader__paper" />
           <svg
             className="pointer-events-none absolute inset-0 h-full w-full"
             aria-hidden
@@ -204,22 +293,32 @@ export function SiteLoader() {
           <div className="site-gate__stage">
             <div className="site-gate__cover">
               <video
-                ref={videoRef}
-                className="site-gate__video is-active"
-                src={INTRO_VIDEO}
-                poster={INTRO_POSTER}
-                playsInline
+                ref={coverVideoRef}
+                className={`site-gate__cover-video${playing ? " is-hidden" : ""}`}
+                src={COVER_VIDEO}
+                poster={COVER_POSTER}
+                autoPlay
                 muted
                 loop
-                autoPlay
+                playsInline
                 preload="auto"
+                aria-label="QFest about landing"
               />
+              {playing ? (
+                <iframe
+                  className="site-gate__youtube is-active"
+                  src={`https://www.youtube.com/embed/${YOUTUBE_PLACEHOLDER_ID}?autoplay=1&rel=0&modestbranding=1`}
+                  title="QFest intro video"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : null}
             </div>
             {!playing ? (
               <button
                 type="button"
                 className="site-gate__play"
-                onClick={() => void playVideo()}
+                onClick={playVideo}
               >
                 Play video
               </button>

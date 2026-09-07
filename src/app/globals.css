@@ -397,12 +397,18 @@ html.intro-lock body {
   overflow: hidden;
 }
 
+/* Keep the page under the intro fully covered — no peek-through during swaps */
+html.intro-lock body > :not(.site-loader) {
+  visibility: hidden;
+}
+
 .site-loader {
   position: fixed;
   inset: 0;
   z-index: 200;
   overflow: hidden;
   color: var(--ink);
+  background: var(--paper);
 }
 
 .site-loader__paper {
@@ -492,22 +498,38 @@ html.intro-lock body {
   object-fit: cover;
 }
 
-.site-gate__cover-img.is-hidden {
+.site-gate__cover-img.is-hidden,
+.site-gate__cover-video.is-hidden {
   opacity: 0;
+  pointer-events: none;
 }
 
-.site-gate__video {
+.site-gate__cover-video {
   position: absolute;
   inset: 0;
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0;
-  pointer-events: none;
+  background: var(--paper-deep);
 }
 
-.site-gate__video.is-active {
+.site-gate__video,
+.site-gate__youtube {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  background: #000;
+}
+
+.site-gate__video.is-active,
+.site-gate__youtube.is-active {
   opacity: 1;
   pointer-events: auto;
 }
@@ -557,10 +579,12 @@ html.intro-lock body {
 
 @keyframes gate-in {
   from {
-    opacity: 0;
+    opacity: 0.001;
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
