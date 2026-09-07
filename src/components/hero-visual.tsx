@@ -26,18 +26,20 @@ export function HeroVisual() {
 
   return (
     <div className="hero__visual relative flex min-h-0 w-full items-center justify-center self-stretch">
-      <video
-        ref={videoRef}
-        className="hero__image hero__image--key-video mx-auto h-auto max-h-[min(58svh,34rem)] w-auto max-w-full object-contain lg:max-h-[min(78svh,48rem)]"
-        src="/brand/QFest-key-visual.mp4"
-        poster="/brand/QFest-key-visual.png"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="auto"
-        aria-label={`${festival.name} ${festival.year} — ${festival.title}. ${festival.presenter}.`}
-      />
+      <div className="hero__image-feather mx-auto max-h-[min(58svh,34rem)] w-auto max-w-full lg:max-h-[min(78svh,48rem)]">
+        <video
+          ref={videoRef}
+          className="hero__image mx-auto block h-auto max-h-[min(58svh,34rem)] w-auto max-w-full object-contain lg:max-h-[min(78svh,48rem)]"
+          src="/brand/QFest-key-visual-v2.mp4"
+          poster="/brand/QFest-key-visual.png"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          aria-label={`${festival.name} ${festival.year} — ${festival.title}. ${festival.presenter}.`}
+        />
+      </div>
     </div>
   );
 }

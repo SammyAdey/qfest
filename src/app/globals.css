@@ -79,9 +79,26 @@ body {
   animation: hero-settle 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
 }
 
-/* Knock out solid black video backdrop against the paper page */
-.hero__image--key-video {
-  mix-blend-mode: screen;
+/* Soft edge fade so the key visual melts into the paper background */
+.hero__image-feather {
+  display: inline-block;
+  line-height: 0;
+  -webkit-mask-image: radial-gradient(
+    ellipse 72% 68% at 50% 48%,
+    #000 42%,
+    rgba(0, 0, 0, 0.55) 62%,
+    transparent 78%
+  );
+  mask-image: radial-gradient(
+    ellipse 72% 68% at 50% 48%,
+    #000 42%,
+    rgba(0, 0, 0, 0.55) 62%,
+    transparent 78%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
 }
 
 .home-about__headline {
